@@ -5,8 +5,7 @@ using UnityEngine;
 public class boardPiece : MonoBehaviour
 {
     public int xCord;
-    public int yCord;
-    public int coin =0;
+    public int yCord;    
    
    // private SpriteRenderer myRenderer;  // 0 no coind, 1 player coind, 2 cpu coin
     
@@ -30,19 +29,9 @@ public class boardPiece : MonoBehaviour
         Board.instance.spawnplayercoin(xCord,yCord);
     }*/
 
-    void OnMouseOver()
+    public void piececlicked()
     {
-        
-        SpriteRenderer renderer = GetComponent<SpriteRenderer>();//SpriteRenderer renderer = GetComponent<SpriteRenderer>();//Get the renderer via GetComponent or have it cached previously
-        renderer.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+        Board.instance.spawnplayercoin(xCord,yCord);
     }
-     void OnMouseExit()
-    {
-         SpriteRenderer renderer = GetComponent<SpriteRenderer>();//Get the renderer via GetComponent or have it cached previously
-        renderer.color = new Color(1f, 1f, 1f, 1f);
-    }
-    
-    
-
 
 }
