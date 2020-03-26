@@ -18,28 +18,17 @@ public class boardPiece : MonoBehaviour
 
     // Update is called once per frame
     void Update()
-    {
-        
+    {  
+
+           
     }
 
-    void OnMouseDown()
+   /* void OnMouseDown()
     {
-        Board.instance.clickedpieceX = xCord;
-        Board.instance.clickedpieceY = yCord;
-        Board.instance.spawnplayercoin();
-        
-        if(Board.instance.playerturn)
-        {
-        Board.instance.checkwinning(Board.instance.playerturn);    
-        Board.instance.playerturn = false;
-        }
-        else
-        {
-        Board.instance.checkwinning(Board.instance.playerturn);
-        Board.instance.playerturn = true; 
-        }
-
-    }
+        //Board.instance.clickedpieceX = xCord;
+        //Board.instance.clickedpieceY = yCord;
+        Board.instance.spawnplayercoin(xCord,yCord);
+    }*/
 
     void OnMouseOver()
     {
