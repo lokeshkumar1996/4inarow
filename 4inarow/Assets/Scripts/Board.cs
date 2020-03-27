@@ -62,9 +62,14 @@ public class Board : MonoBehaviour
     {
         instance =this;
             
+        
+        noInCol = GameObject.Find("Rowcolinfo").GetComponent<SceneChange>().columns;
+        noInRow = GameObject.Find("Rowcolinfo").GetComponent<SceneChange>().rows;
+        
         //read textfiel and get the row and column value
-        readdatafromtext();
+        //readdatafromtext();
         //readdatafromjson();
+
         genarateBoard(noInRow,noInCol);
 
         //switch player and cpu turns at start
