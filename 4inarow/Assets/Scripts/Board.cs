@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using System.Linq;
+using System.IO;
 
 
 public class Board : MonoBehaviour
@@ -24,48 +25,47 @@ public class Board : MonoBehaviour
 
     int playerscore =0;
     int cpuscore=0;  
+    bool playerwon = false;
 
     
-    public int noOfRow ; // pieces in x cordinates , min row 4
-    public int noOfCol ; // pieces in y cordinates, min colum 4    
+    int noInRow ; // pieces in x cordinates , min row 4
+    int noInCol ; // pieces in y cordinates, min colum 4    
     
     public GameObject[,] piece; 
     
     
-    public int lastcoinplacedX ;
-    public int lastcoinplacedY ;
+     int lastcoinplacedX ;
+     int lastcoinplacedY ;
     
 
-    [SerializeField] private bool playerturn = true;
-    [SerializeField] bool gameover = false;
+    private bool playerturn = true;
+    bool gameover = false;
     bool playerstartsgame = true;
 
-    private int[] xcordinatesfilled; //no of coins filled in easch posistion of xcordinate
+     int[] xcordinatesfilled; //no of coins filled in easch posistion of xcordinate
     
-    private int[,] boardcoins; // array of coins placed in the board
+     int[,] boardcoins; // array of coins placed in the board
 
 
     //botvariables
-    public int[] cpumove = new int[2];  // index 0 is for defence position of X and index 1 is for offence position of X 
-    public bool defencemode =false;
-    public bool offencemode =false;
-    public List<int> columnstofill = new List<int>();
-    public List<int> noeasymove = new List<int>();
-    public bool cpufirstmove = false;
+     int[] cpumove = new int[2];  // index 0 is for defence position of X and index 1 is for offence position of X 
+     bool defencemode =false;
+     bool offencemode =false;
+     List<int> columnstofill = new List<int>();
+     List<int> columnoutofbound = new List<int>();
+     bool cpufirstmove = false;
 
 
    
     // Start is called before the first frame update
     void Start()
     {
-        instance =this;       
-        genarateBoard(noOfRow,noOfCol);
-
-        //populating the list
-        for(int i=0; i<noOfRow; i++)
-        {
-            columnstofill.Add(i);
-        }
+        instance =this;
+            
+        //read textfiel and get the row and column value
+        readdatafromtext();
+        //readdatafromjson();
+        genarateBoard(noInRow,noInCol);
 
         //switch player and cpu turns at start
         if(playerstartsgame)
@@ -84,10 +84,21 @@ public class Board : MonoBehaviour
 
     void Update () 
     {
-        if(!playerturn) //cpu turn
+        //cpu turn
+        if(!playerturn) 
         { 
+            //clear the list for no of collums
+            columnstofill.Clear();
+
+            //reinitialize the list for no of colums
+            for(int i=0; i<noInRow; i++)
+            { columnstofill.Add(i); } 
+
+
             //chosing different mode
             checkpossiblemoves("defence");
+
+
             if(defencemode) //plays in defence
             {
              Cpudefencemove(); 
@@ -95,20 +106,65 @@ public class Board : MonoBehaviour
             else  //plays in offence
             {
                 checkpossiblemoves("offence");
+
                 if(offencemode)    
                  {
                  Cpuoffencemove();  
                  }   
                  else
                  {
-                 Cpueasymove();
+                    Cpueasymove();
                  }             
             }
             playerturn =true;
         }
     } 
 
+    /* streaming asset folder isnot found in android so commenting it out and using text file
+    private void readdatafromjson()
+    {
 
+        Dictionary<string, string> Data = new Dictionary<string, string> ();
+
+            string fileName = "rowandcol.json";
+            string filePath = Path.Combine (Application.streamingAssetsPath, fileName);
+
+         
+         
+            string dataAsJson = File.ReadAllText (filePath);
+            rowcoldata loadedData = JsonUtility.FromJson<rowcoldata> (dataAsJson);
+
+            for (int i = 0; i < loadedData.items.Length; i++) 
+            {
+                Data.Add (loadedData.items [i].key, loadedData.items [i].value);    
+            }
+
+            Debug.Log ("Data loaded, dictionary contains: " + Data.Count + " entries");
+            Debug.Log(Data ["Row"]);
+            Debug.Log(Data ["Column"]);
+
+            noInRow = int.Parse(Data ["Column"]);
+            noInCol = int.Parse(Data ["Row"]);
+
+    }*/
+
+    private void readdatafromtext()
+    {
+        //read no of row and col from the text file in resource
+        TextAsset txt = (TextAsset)Resources.Load("rowandcol", typeof(TextAsset));
+        string content = txt.text;        
+        string[] Data = content.Split(' ');
+        string[] row = Data[0].Split('=');
+        string[] column = Data[1].Split('=');
+
+        
+
+        //assign value to the row and col
+        noInRow = int.Parse(column[1]);   // noInRow is the number of elements in the row
+        noInCol = int.Parse(row[1]);   // noInCol is the number of elements in the collum
+    }
+
+    //create a gameboard and adjust the camera accrouding to the size
     private void genarateBoard(int x, int y)
     {
         piece = new GameObject[x,y];
@@ -130,27 +186,25 @@ public class Board : MonoBehaviour
             }
             maincameraXcord = i;
         }
-        
-      // maincamera.transform.position = new Vector3(maincameraXcord/2 * 10F, maincameraYcord/2 * 10F, -(maincameraXcord * 20f /(float)Math.Sqrt(3)));
+
+        //adjust camera to set it center of the board
         maincamera.transform.position = new Vector3(maincameraXcord/2 * 10F, maincameraYcord/2 * 10F +maincameraYcord, -10f);
-       //Canvas.GetComponent<RectTransform>().localPosition = new Vector3(-maincameraXcord/2 * 10F, -maincameraYcord/2 * 10F +maincameraYcord, 100f);
-       
-       Camera.main.orthographicSize = noOfRow*10f ;
-       
+        Camera.main.orthographicSize = noInRow*10f +noInRow;
     }
 
+    //when restarting game delete all previous game data
     private void regenarateBoard(int x, int y)
     {    
         // reset xcordinatesfilled to 0
-        for(int i =0; i<noOfRow; i++)
+        for(int i =0; i<noInRow; i++)
             {
                 xcordinatesfilled[i] = 0;
             }
 
-        //reset all  boardcoins to 0 and adn destory coins
-        for(int j =0; j<noOfCol; j++)
+        //reset all  boardcoins to 0 and and destory coins
+        for(int j =0; j<noInCol; j++)
         {
-            for(int i =0; i<noOfRow; i++)
+            for(int i =0; i<noInRow; i++)
             {
                 boardcoins[i,j] = 0;
                 if(piece[i,j].transform.childCount > 0 )
@@ -160,11 +214,13 @@ public class Board : MonoBehaviour
 
         //regernearte the colunmsfill list
         columnstofill.Clear();
-        for(int i=0; i<noOfRow; i++)
+        for(int i=0; i<noInRow; i++)
         {
             columnstofill.Add(i);
-            
         }
+
+        //clear the outof bound column list
+        columnoutofbound.Clear();
 
         //switch player and cpu turns at start
         if(playerstartsgame)
@@ -183,248 +239,127 @@ public class Board : MonoBehaviour
        
     }
 
-
-
-
-
+    //spawing the player and cpu coins
     public void spawnplayercoin(int clickedpieceX, int clickedpieceY )
     {
-       if(xcordinatesfilled[clickedpieceX] < noOfCol)
+       if(xcordinatesfilled[clickedpieceX] < noInCol)
        {
+           if(playerturn)
+            {
+                GameObject coin = Instantiate(yellopiece, new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f), Quaternion.identity);
+                coin.transform.parent = piece[clickedpieceX,xcordinatesfilled[clickedpieceX]].transform;        
+                boardcoins[clickedpieceX,xcordinatesfilled[clickedpieceX]] = 1;
 
-        if(playerturn)
-        {
-            GameObject coin = Instantiate(yellopiece, new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f), Quaternion.identity);
-            coin.transform.parent = piece[clickedpieceX,xcordinatesfilled[clickedpieceX]].transform;        
-            boardcoins[clickedpieceX,xcordinatesfilled[clickedpieceX]] = 1;
+                lastcoinplacedX=clickedpieceX;
+                lastcoinplacedY=xcordinatesfilled[clickedpieceX];
 
-            lastcoinplacedX=clickedpieceX;
-            lastcoinplacedY=xcordinatesfilled[clickedpieceX];
-
-                if(xcordinatesfilled[clickedpieceX] < noOfCol-1 )
-                {
                     xcordinatesfilled[clickedpieceX] += 1;
-                }        
-                if(xcordinatesfilled[clickedpieceX] >= noOfCol)
-                {
-                    columnstofill.Remove(clickedpieceX);
-                }
-                
-        }
-        else
-        {
-            GameObject coin = Instantiate(redpiece, new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f), Quaternion.identity);
-            coin.transform.parent = piece[clickedpieceX,xcordinatesfilled[clickedpieceX]].transform;         
-            boardcoins[clickedpieceX,xcordinatesfilled[clickedpieceX]] = 2;
+                   
+                    if(xcordinatesfilled[clickedpieceX] >= noInCol)
+                    {
+                        columnoutofbound.Add(clickedpieceX);
+                    }
+            }
+            else
+            {
+                GameObject coin = Instantiate(redpiece, new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f), Quaternion.identity);
+                coin.transform.parent = piece[clickedpieceX,xcordinatesfilled[clickedpieceX]].transform;         
+                boardcoins[clickedpieceX,xcordinatesfilled[clickedpieceX]] = 2;
 
-            lastcoinplacedX=clickedpieceX;
-            lastcoinplacedY=xcordinatesfilled[clickedpieceX];
-
-                    
-                if(xcordinatesfilled[clickedpieceX] < noOfCol-1 )
-                {
+                lastcoinplacedX=clickedpieceX;
+                lastcoinplacedY=xcordinatesfilled[clickedpieceX];
+   
                     xcordinatesfilled[clickedpieceX] += 1;
-                }        
-                if(xcordinatesfilled[clickedpieceX] >= noOfCol)
-                {
-                    columnstofill.Remove(clickedpieceX);
-                }
-        }
+                           
+                    if(xcordinatesfilled[clickedpieceX] >= noInCol)
+                    {
+                        columnoutofbound.Add(clickedpieceX);
+                    }
+            }
 
-       
-        if(!gameover)
-        checkwinning(playerturn);
-
+            //ifnot gameover check who iswinning    
+            if(!gameover)
+            checkwinning(playerturn);
        }
+      
+       
     }
 
-
-
-
     //when a coin is dropped it check the all possstion to determind if the player wins or not
-    public void checkwinning(bool player)
-    {
-        int coinvalue; //CHECK RED OR YELLOW COIN
+    private void checkwinning(bool player)
+    {    
+
+        int coinvalue;
+         //CHECK RED OR YELLOW COIN
         if(player)
         coinvalue =1;
         else coinvalue =2;
 
-        //checking rightside 
-        if(lastcoinplacedX < noOfRow-3)
+        
+        //horizontal check
+        for(int j=0; j<noInCol; j++)
         {
-            if(boardcoins[lastcoinplacedX+1,lastcoinplacedY] == coinvalue)
+            for(int i=0; i<noInRow-3;i++)
             {
-                if(boardcoins[lastcoinplacedX+2,lastcoinplacedY] == coinvalue)
+              if(boardcoins[i,j] == coinvalue && boardcoins[i+1,j] == coinvalue && boardcoins[i+2,j] == coinvalue && boardcoins[i+3,j] == coinvalue)
+              {    
+                 Higlight(piece[i,j], piece[i+1,j], piece[i+2,j], piece[i+3,j]);
+                  break;
+              }
+            }
+        }
+
+        //diagonal rightsideup check
+        for(int j=0; j<noInCol-3; j++)
+        {
+            for(int i=0; i<noInRow-3;i++)
+            {
+              if(boardcoins[i,j] == coinvalue && boardcoins[i+1,j+1] == coinvalue && boardcoins[i+2,j+2] == coinvalue && boardcoins[i+3,j+3] == coinvalue)
+              {
+                    Higlight(piece[i,j], piece[i+1,j+1], piece[i+2,j+2], piece[i+3,j+3]);
+                    break; 
+                   
+              }
+            }
+        }
+
+        //diagonal leftsideup check
+        for(int j=0; j<noInCol-3; j++)
+        {
+            for(int i=noInRow-1; i>3; i--)
+            {
+              if(boardcoins[i,j] == coinvalue && boardcoins[i-1,j+1] == coinvalue && boardcoins[i-2,j+2] == coinvalue && boardcoins[i-3,j+3] == coinvalue)
+              {
+                  Higlight(piece[i,j], piece[i-1,j+1], piece[i-2,j+2], piece[i-3,j+3]);
+                break; 
+              } 
+            }
+        }
+
+        //to check the coins pile up in y axis        
+        for(int i=0; i<noInRow; i++)
+        {
+            for(int j=0; j< noInCol-3; j++)
+            {
+                if(boardcoins[i,j] == coinvalue && boardcoins[i,j+1] == coinvalue && boardcoins[i,j+2] == coinvalue && boardcoins[i,j+3] == coinvalue)
                 {
-                    if(boardcoins[lastcoinplacedX+3,lastcoinplacedY]== coinvalue)
-                    {
-                    defencemode = true;
-                    Debug.Log("player"+coinvalue+" win");
-                    Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX+1,lastcoinplacedY],piece[lastcoinplacedX+2,lastcoinplacedY],piece[lastcoinplacedX+3,lastcoinplacedY]);
-                    }
+                    Higlight(piece[i,j], piece[i,j+1], piece[i,j+2], piece[i,j+3]);
+                  break;
                 }
             }
         }
-
-        //checking leftside
-        if(lastcoinplacedX >= 3)
-        {
-            if(boardcoins[lastcoinplacedX-1,lastcoinplacedY]== coinvalue)
-             {
-                if(boardcoins[lastcoinplacedX-2,lastcoinplacedY]== coinvalue)
-                {
-                    if(boardcoins[lastcoinplacedX-3,lastcoinplacedY]== coinvalue)
-                    {
-                        Debug.Log("player"+coinvalue+" win");
-                        Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX-1,lastcoinplacedY],piece[lastcoinplacedX-2,lastcoinplacedY],piece[lastcoinplacedX-3,lastcoinplacedY]);             
-                    }
-                }
-            }
-        }
-
-        //checking down
-        if(lastcoinplacedY>=2)
-        {
-            if(boardcoins[lastcoinplacedX,lastcoinplacedY-1] == coinvalue)
-            {
-                if(boardcoins[lastcoinplacedX,lastcoinplacedY-2] == coinvalue)
-                {
-                    if(lastcoinplacedY+1 < noOfCol)
-                    {                    
-                    cpumove[0]=lastcoinplacedX;                                      
-                    defencemode = true;   
-                    }            
-
-                    if(lastcoinplacedY>=3)
-                    {
-                        if(boardcoins[lastcoinplacedX,lastcoinplacedY-3] == coinvalue)
-                        {
-                            Debug.Log("player"+coinvalue+" win");
-                            Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX,lastcoinplacedY-3],piece[lastcoinplacedX,lastcoinplacedY-2],piece[lastcoinplacedX,lastcoinplacedY-1]);
-                        }
-                    }
-                }
-            }
-        }
-
-
-        //checking right diagonal down
-        if(lastcoinplacedY >= 3 && lastcoinplacedX < noOfRow-3)
-        {
-            if(boardcoins[lastcoinplacedX+1,lastcoinplacedY-1]== coinvalue)
-            {
-                if(boardcoins[lastcoinplacedX+2,lastcoinplacedY-2]== coinvalue)
-                {
-                    if(boardcoins[lastcoinplacedX+3,lastcoinplacedY-3]== coinvalue)
-                    {
-                        Debug.Log("player"+coinvalue+" win");
-                        Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX+3,lastcoinplacedY-3],piece[lastcoinplacedX+2,lastcoinplacedY-2],piece[lastcoinplacedX+1,lastcoinplacedY-1]);
-                    }
-                }
-            }
-        }
-
-        //checking left diagonal down
-        if(lastcoinplacedY >= 3 && lastcoinplacedX >= 3)
-        {
-            if(boardcoins[lastcoinplacedX-1,lastcoinplacedY-1]== coinvalue)
-            {
-                if(boardcoins[lastcoinplacedX-2,lastcoinplacedY-2]== coinvalue)
-                {
-                    if(boardcoins[lastcoinplacedX-3,lastcoinplacedY-3]== coinvalue)
-                    {
-                        Debug.Log("player"+coinvalue+" win");
-                            Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX-3,lastcoinplacedY-3],piece[lastcoinplacedX-2,lastcoinplacedY-2],piece[lastcoinplacedX-1,lastcoinplacedY-1]);
-                    }
-                }
-            }
-        }
-
-
-        //check in betweens of the 4COINS in a  horizontal (1,0,1,1) PATTERN
-        if(lastcoinplacedX>0 && lastcoinplacedX < noOfRow-3)
-        {
-            if(boardcoins[lastcoinplacedX-1,lastcoinplacedY] == coinvalue && boardcoins[lastcoinplacedX+1,lastcoinplacedY] == coinvalue && boardcoins[lastcoinplacedX+2,lastcoinplacedY] == coinvalue )
-            {
-             Debug.Log("player"+coinvalue+" win");
-             Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX-1,lastcoinplacedY],piece[lastcoinplacedX+1,lastcoinplacedY],piece[lastcoinplacedX+2,lastcoinplacedY]);
-            }
-        }
-
-        //check in betweens of the 4COINS in a  horizontal (1,1,0,1) PATTERN
-        if(lastcoinplacedX>2 && lastcoinplacedX < noOfRow-1)
-        {
-            if(boardcoins[lastcoinplacedX-1,lastcoinplacedY] == coinvalue && boardcoins[lastcoinplacedX-2,lastcoinplacedY] == coinvalue && boardcoins[lastcoinplacedX+1,lastcoinplacedY] == coinvalue )
-            {
-             Debug.Log("player"+coinvalue+" win");
-             Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX-1,lastcoinplacedY],piece[lastcoinplacedX-2,lastcoinplacedY],piece[lastcoinplacedX+1,lastcoinplacedY]);
-            }
-        }
-
-
-        //check diadgonals right up for (1,1,0,1) PATTERN
-        if((lastcoinplacedX>0 && lastcoinplacedY>0) && lastcoinplacedX < noOfRow-2 && lastcoinplacedY < noOfCol-2)
-        {
-            if(boardcoins[lastcoinplacedX-1,lastcoinplacedY-1] == coinvalue && boardcoins[lastcoinplacedX+1,lastcoinplacedY+1] == coinvalue && boardcoins[lastcoinplacedX+2,lastcoinplacedY+2] == coinvalue)
-            {
-                 Debug.Log("player"+coinvalue+" win");
-             Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX-1,lastcoinplacedY-1],piece[lastcoinplacedX+1,lastcoinplacedY+1],piece[lastcoinplacedX+2,lastcoinplacedY+2]);
-            }
-        }
-
-        //check diadgonals right up for (1,0,1,1) PATTERN
-        if((lastcoinplacedX>1 && lastcoinplacedY>1) && (lastcoinplacedX < noOfRow-1 && lastcoinplacedY < noOfCol-1))
-        {
-            if(boardcoins[lastcoinplacedX-1,lastcoinplacedY-1] == coinvalue && boardcoins[lastcoinplacedX-2,lastcoinplacedY-2] == coinvalue && boardcoins[lastcoinplacedX+1,lastcoinplacedY+1] == coinvalue )
-            {
-                 Debug.Log("player"+coinvalue+" win");
-             Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX-2,lastcoinplacedY-2],piece[lastcoinplacedX-1,lastcoinplacedY-1],piece[lastcoinplacedX+1,lastcoinplacedY+1]);
-            }
-        }
-
-         //check diadgonals left up for (1,1,0,1) PATTERN
-        if((lastcoinplacedX < noOfRow-1 && lastcoinplacedY > 0) && (lastcoinplacedX < 1 && lastcoinplacedY < noOfCol-2))
-        {
-            if(boardcoins[lastcoinplacedX+1,lastcoinplacedY-1] == coinvalue && boardcoins[lastcoinplacedX-1,lastcoinplacedY+1] == coinvalue && boardcoins[lastcoinplacedX-2,lastcoinplacedY+2] == coinvalue )
-            {
-                 Debug.Log("player"+coinvalue+" win");
-             Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX+1,lastcoinplacedY-1],piece[lastcoinplacedX-1,lastcoinplacedY+1],piece[lastcoinplacedX-2,lastcoinplacedY+2]);
-            }
-        }
-
-         //check diadgonals left up for (1,0,1,1) PATTERN
-        if((lastcoinplacedX < noOfRow-2 && lastcoinplacedY > 1) && (lastcoinplacedX > 0 && lastcoinplacedY < noOfCol-1))
-        {
-            if(boardcoins[lastcoinplacedX+1,lastcoinplacedY-1] == coinvalue && boardcoins[lastcoinplacedX-1,lastcoinplacedY+1] == coinvalue && boardcoins[lastcoinplacedX+2,lastcoinplacedY-2] == coinvalue )
-            {
-                 Debug.Log("player"+coinvalue+" win");
-             Higlight(piece[lastcoinplacedX,lastcoinplacedY],piece[lastcoinplacedX+1,lastcoinplacedY-1],piece[lastcoinplacedX-1,lastcoinplacedY+1],piece[lastcoinplacedX+2,lastcoinplacedY-2]);
-            }
-        }
-
-        
-        
-        
-        
-        
-        
-        if(!gameover) 
-        {
-        // check for other possible places for defence
-        //checkpossiblemoves("defence"); 
 
         // change the player turn if no one is winning
+        if(!gameover) 
+        { 
         changeturns();   
-        }       
-        
-
-
+        } 
+       
     }
 
     //instance of new game
     public void Restartgame()
-    {  
-       //SceneManager.LoadScene("Game");
+    {        
        gameover = false; 
        
        Canvas.GetComponent<GraphicRaycaster>().enabled = true;      
@@ -432,28 +367,27 @@ public class Board : MonoBehaviour
        playerwin.SetActive(false);
        Gamewinningpanel.SetActive(false);
 
-       regenarateBoard(noOfRow,noOfCol); 
+       regenarateBoard(noInRow,noInCol); 
 
-       changeturns();
-       
+      // changeturns();       
     }
 
     //after game over
     private void Resetgame()
     {  
        
-       Canvas.GetComponent<GraphicRaycaster>().enabled = false;
-       //transform.position = transform.position + new Vector3(0,0,50f);
+       Canvas.GetComponent<GraphicRaycaster>().enabled = false;       
        Gamewinningpanel.SetActive(true);
-       if(playerturn)
+
+       if(playerwon)
         {          
-        playerwin.SetActive(true);
-        playerscore+= 1;
+        playerwin.SetActive(true); 
+        cpuwin.SetActive(false);      
         }
         else
         {
         cpuwin.SetActive(true);
-        cpuscore+= 1;
+        playerwin.SetActive(false);        
         }
        
     }
@@ -463,6 +397,7 @@ public class Board : MonoBehaviour
     private void Higlight(GameObject piece1,GameObject piece2,GameObject piece3,GameObject piece4)
     {   
         gameover = true;
+
         piece1.transform.GetChild(0).gameObject.GetComponent<Animator>().enabled = true;
         piece2.transform.GetChild(0).gameObject.GetComponent<Animator>().enabled = true;
         piece3.transform.GetChild(0).gameObject.GetComponent<Animator>().enabled = true;
@@ -472,11 +407,13 @@ public class Board : MonoBehaviour
         {  
         playerscore+= 1;
         playerscoretext.text = playerscore.ToString();
+        playerwon = true;
         }
         else
         {
         cpuscore+= 1;
         cpuscoretext.text = cpuscore.ToString();
+        playerwon =false;
         }
 
         Invoke("Resetgame",1.5f);
@@ -488,38 +425,41 @@ public class Board : MonoBehaviour
         
         if(cpufirstmove) //if cpu plays first
         {  
-            Debug.Log("cpu easy move1"+cpufirstmove); 
             cpufirstmove = false;
-            
-
-            spawnplayercoin((int)noOfRow/2, 0);         
+            spawnplayercoin((int)noInRow/2, 0);         
         }
         else
         {
+            for(int i=0; i<columnoutofbound.Count; i++)
+            {   
+                try{columnstofill.Remove(columnoutofbound[i]);}
+                catch{}
+            }
+
             Debug.Log("cpu easy move");
             spawnplayercoin( columnstofill[Random.Range(0, columnstofill.Count)], 0);
         }
         
     }
 
-    //defencing mode
+    //cpu plays to defend player
     private void Cpudefencemove()
     {          
             spawnplayercoin(cpumove[0], 0);
             defencemode = false;
             Debug.Log("cpu defence move");
-       
     }
 
+    //cpu plays to win
     private void Cpuoffencemove()
     {
         spawnplayercoin(cpumove[1], 0);
         offencemode = false;
-         Debug.Log("cpu offence move");       
+        Debug.Log("cpu offence move");       
     }
 
 
-    //changes the player and cup turn
+    //changes the player and CPU turn
     private void changeturns()
     {
         if(playerturn)
@@ -534,7 +474,6 @@ public class Board : MonoBehaviour
 
 
     //defencive and offencice mode calcuclation
-
     private void checkpossiblemoves(string type)
     {
 
@@ -550,9 +489,9 @@ public class Board : MonoBehaviour
         }
 
         //offence move to place coins adjacent to each other wheen in patetren 0,1,1,0,0 or 0,0,1,1,0,0
-        for(int j=0; j<=xcordinatesfilled.Max(); j++)
+        for(int j=0; j<noInCol; j++)
         {
-            for(int i=0; i<noOfRow-4;i++)
+            for(int i=0; i<noInRow-4;i++)
             {   
                 //pattern 0,2,0,0,0
                 if(boardcoins[i,j] == 0 &&  boardcoins[i+1,j] == coinvalue && boardcoins[i+2,j] == 0 && boardcoins[i+3,j] == 0 && boardcoins[i+4,j] == 0)
@@ -641,9 +580,9 @@ public class Board : MonoBehaviour
        
 
         //to prevent 3rd coin to place adjacent to eachother 
-        for(int j=0; j<=xcordinatesfilled.Max(); j++)
+        for(int j=0; j<noInCol; j++)
         {
-            for(int i=0; i<noOfRow-4;i++)
+            for(int i=0; i<noInRow-4;i++)
             {
                 //pattern 0,1,1,0,0
                 if(boardcoins[i,j] == 0 &&  boardcoins[i+1,j] == coinvalue && boardcoins[i+2,j] == coinvalue && boardcoins[i+3,j] == 0 && boardcoins[i+4,j] == 0)
@@ -703,9 +642,9 @@ public class Board : MonoBehaviour
         
 
         //to check the coins pile up in y axis        
-        for(int i=0; i<noOfRow; i++)
+        for(int i=0; i<noInRow; i++)
         {
-            for(int j=0; j< noOfCol-3; j++)
+            for(int j=0; j< noInCol-3; j++)
             {
                 if(boardcoins[i,j] == coinvalue && boardcoins[i,j+1] == coinvalue && boardcoins[i,j+2] == coinvalue && boardcoins[i,j+3] == 0)
                 {
@@ -721,9 +660,9 @@ public class Board : MonoBehaviour
         
 
         //check horizontal fill position (1,0,1,1) or (1,1,0,1) or (0,1,1,1) or (1,1,1,0)       
-        for(int j=0; j<=xcordinatesfilled.Max(); j++)
+        for(int j=0; j<noInCol; j++)
         {
-            for(int i=0; i<noOfRow-3;i++)
+            for(int i=0; i<noInRow-3;i++)
             {
               if(boardcoins[i,j] == coinvalue && boardcoins[i+1,j] == coinvalue && boardcoins[i+2,j] == 0 && boardcoins[i+3,j] == coinvalue)
               {    
@@ -738,6 +677,7 @@ public class Board : MonoBehaviour
                         Debug.Log("check horizontal fill position (1,1,0,1)");
                         break; 
                     }
+                    else{ columnstofill.Remove(i+2);}
                   }
                   else
                   {
@@ -763,6 +703,7 @@ public class Board : MonoBehaviour
                         Debug.Log("check horizontal fill position (1,0,1,1)");
                         break; 
                     }
+                    else{ columnstofill.Remove(i+1);}
                   }
                   else
                   {
@@ -783,11 +724,12 @@ public class Board : MonoBehaviour
                     {        
                         cpumove[coinvalue-1] = i;
                         if(type == "defence")
-                        defencemode =true;
+                        defencemode =true; 
                         else offencemode =true;
                         Debug.Log("check horizontal fill position (0,1,1,1)");
                         break; 
                     }
+                    else{ columnstofill.Remove(i);}
                   }
                   else
                   {
@@ -813,6 +755,7 @@ public class Board : MonoBehaviour
                         Debug.Log("check horizontal fill position (1,1,1,0)");
                         break; 
                     }
+                    else{columnstofill.Remove(i+3);}
                   }
                   else
                   {
@@ -830,9 +773,9 @@ public class Board : MonoBehaviour
 
 
         //check diagonal rightsideup  for (1,0,1,1) or (1,1,0,1)         
-        for(int j=0; j<=noOfCol-3; j++)
+        for(int j=0; j<noInCol-3; j++)
         {
-            for(int i=0; i<noOfRow-3;i++)
+            for(int i=0; i<noInRow-3;i++)
             {
               if(boardcoins[i,j] == coinvalue && boardcoins[i+1,j+1] == coinvalue && boardcoins[i+2,j+2] == 0 && boardcoins[i+3,j+3] == coinvalue)
               {
@@ -864,9 +807,9 @@ public class Board : MonoBehaviour
         }
 
         //check diagonal rightsideup  for (1,1,1,0)          
-        for(int j=0; j<=noOfCol-3; j++)
+        for(int j=0; j<noInCol-3; j++)
         {
-            for(int i=0; i<noOfRow-3;i++)
+            for(int i=0; i<noInRow-3;i++)
             {
               if(boardcoins[i,j] == coinvalue && boardcoins[i+1,j+1] == coinvalue && boardcoins[i+2,j+2] == coinvalue && boardcoins[i+3,j+3] == 0)
               {
@@ -884,9 +827,9 @@ public class Board : MonoBehaviour
         }
 
         //check diagonal leftsideup  for (1,0,1,1) or (1,1,0,1)         
-        for(int j=0; j<=noOfCol-3; j++)
+        for(int j=0; j<noInCol-3; j++)
         {
-            for(int i=noOfRow-1; i>3; i--)
+            for(int i=noInRow-1; i>3; i--)
             {
               if(boardcoins[i,j] == coinvalue && boardcoins[i-1,j+1] == coinvalue && boardcoins[i-2,j+2] == 0 && boardcoins[i-3,j+3] == coinvalue)
               {
@@ -917,9 +860,9 @@ public class Board : MonoBehaviour
         }
 
         ////check diagonal leftsideup  for (0,1,1,1)        
-        for(int j=0; j<=noOfCol-3; j++)
+        for(int j=0; j<noInCol-3; j++)
         {
-            for(int i=noOfRow-1; i>3; i--)
+            for(int i=noInRow-1; i>3; i--)
             {
               if(boardcoins[i,j] == coinvalue && boardcoins[i-1,j+1] == coinvalue && boardcoins[i-2,j+2] == coinvalue && boardcoins[i-3,j+3] == 0)
               {
@@ -942,15 +885,10 @@ public class Board : MonoBehaviour
 
     }
 
-
-
-
-
-
-   
-
-    
-
+    public void quitgame()
+    {
+        Application.Quit();
+    }
 
     
 }
