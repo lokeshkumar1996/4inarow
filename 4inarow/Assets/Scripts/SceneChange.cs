@@ -11,8 +11,12 @@ public class SceneChange : MonoBehaviour
      public int rows;
      public int columns;
 
-    public InputField rowfield;
-    public InputField columnfield;
+    //public InputField rowfield;
+    //public InputField columnfield;
+
+    public Text rowfield;
+    public Text columnfield;
+    
 
 
     // Start is called before the first frame update

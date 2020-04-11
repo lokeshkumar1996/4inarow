@@ -251,9 +251,15 @@ public class Board : MonoBehaviour
        {
            if(playerturn)
             {
-                GameObject coin = Instantiate(yellopiece, new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f), Quaternion.identity);
+                GameObject coin = Instantiate(yellopiece, new Vector3(clickedpieceX * 10F, (noInCol-1)*10f, 0f), Quaternion.identity);
+
                 coin.transform.parent = piece[clickedpieceX,xcordinatesfilled[clickedpieceX]].transform;        
                 boardcoins[clickedpieceX,xcordinatesfilled[clickedpieceX]] = 1;
+                
+                Vector3 target = new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f);                 
+                StartCoroutine(droppiece(target,coin,0f));
+                StopCoroutine("droppiece");                
+                
 
                 lastcoinplacedX=clickedpieceX;
                 lastcoinplacedY=xcordinatesfilled[clickedpieceX];
@@ -267,9 +273,14 @@ public class Board : MonoBehaviour
             }
             else
             {
-                GameObject coin = Instantiate(redpiece, new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f), Quaternion.identity);
-                coin.transform.parent = piece[clickedpieceX,xcordinatesfilled[clickedpieceX]].transform;         
+               
+                GameObject coin = Instantiate(redpiece, new Vector3(clickedpieceX * 10F, (noInCol-1)*10f, 0f), Quaternion.identity);
+                coin.transform.parent = piece[clickedpieceX,xcordinatesfilled[clickedpieceX]].transform;        
                 boardcoins[clickedpieceX,xcordinatesfilled[clickedpieceX]] = 2;
+
+                Vector3 target = new Vector3(clickedpieceX * 10F, xcordinatesfilled[clickedpieceX]*10f, 0f);                 
+                StartCoroutine(droppiece(target,coin, 1f));
+                StopCoroutine("droppiece");                
 
                 lastcoinplacedX=clickedpieceX;
                 lastcoinplacedY=xcordinatesfilled[clickedpieceX];
@@ -892,8 +903,33 @@ public class Board : MonoBehaviour
 
     public void quitgame()
     {
-        Application.Quit();
+        if(GameObject.Find("Rowcolinfo") != null)
+        {
+            Destroy(GameObject.Find("Rowcolinfo"));
+        }
+        SceneManager.LoadScene("Mainmenu");
+
     }
+
+    private IEnumerator droppiece(Vector3 target, GameObject  piece, float time)
+    {
+        //Debug.Log("coroutineentered");
+        if(time > 0f)
+        yield return new WaitForSeconds(.2f);  
+
+        while(Vector3.Distance(piece.transform.position, target) > 100f)
+        {
+            piece.transform.position = Vector3.MoveTowards(piece.transform.position, target, Time.deltaTime*1000);
+            //Debug.Log("discance=" + Vector3.Distance(piece.transform.position, target));
+
+            yield return null;
+           
+        }
+         yield return new WaitForSeconds(.5f);  
+    }
+
+    
+
 
     
 }
